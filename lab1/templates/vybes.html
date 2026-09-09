@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рейс {{ .Card.Planet_start }} → {{ .Card.Planet_end }}</title>
+    <link rel="stylesheet" href="/static/styles/vybes_style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="video-background">
+        <video autoplay muted loop playsinline id="bg-video">
+            {{ if .VideoURL }}
+            <source src="{{ .VideoURL }}" type="video/mp4">
+            {{ end }}
+        </video>
+    </div>
+
+    <div id="page">
+        <div id="content">
+            <div class="bottom-section">
+                <div class="left-content">
+                    <div class="title-area">
+                        <span class="card-title">{{ .Card.Planet_start }} – {{ .Card.Planet_end }}</span>
+                    </div>
+
+                    <div class="info-block">
+                        <div class="info-row">
+                            <span class="info-label">Масса корабля:</span>
+                            <span class="info-value">{{ .Card.Spaceship_mass }} кг</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Топливо:</span>
+                            <span class="info-value">{{ .Card.Fuel_volume }} л</span>
+                        </div>
+                    </div>
+
+                    <details class="info-details">
+                        <div class="info-text-container">
+                            <p class="info-text">{{ .Card.Special_info }}</p>
+                        </div>
+                        <summary class="read-more-label"></summary>
+                    </details>
+                </div>
+
+                <div class="right-block">
+                    <div class="like-block">
+                        <img src="/static/img/Icon-likes.png" alt="Лайки" class="like-icon">
+                        <span class="like-count">{{ .Card.Like_count }}</span>
+                    </div>
+                    <a href="/vibes/{{ .Card.ID }}?next=true" class="next-btn"><img src="/static/img/Icon-arrow.png"></a>
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-bar">
+            <div class="nav-btn active"><a href="/vibes/1"><img src="/static/img/Icon-home.png"></a></div>
+            <div class="nav-btn"><a href="/create"><img src="/static/img/Icon-plus.png"></a></div>
+            <div class="nav-btn"><a href="/cards"><img src="/static/img/Icon-plates.png"></a></div>
+        </div>
+    </div>
+
+</body>
+</html>

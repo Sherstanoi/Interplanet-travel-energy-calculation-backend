@@ -1,0 +1,52 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>SpaceTravel</title>
+    <link rel="stylesheet" href="/static/styles/index_style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="page">
+        <div id="top-bar">
+            <form action="/cards" method="GET" class="search-form">
+                <input type="number" name="mass" placeholder="Масса корабля" value="{{ .mass }}">
+                <button type="submit" class="circle-btn search-btn"><img src = "/static/img/Icon-filter.png"></button>
+            </form>
+        </div>
+
+        <div id="content">
+            {{ range .Cards }}
+            <a href="/vibes/{{ .ID }}" class="card-link">
+                <div class="card">
+                    {{ if .ImageURL }}
+                    <div class="card-image">
+                        <img src="{{ .ImageURL }}" alt="{{ .Planet_start }} - {{ .Planet_end }}">
+                    </div>
+                    {{ else }}
+                    <div class="card-image placeholder"></div>
+                    {{ end }}
+                    <div class="card-title">{{ .Planet_start }} - {{ .Planet_end }}</div>
+                    <div class="card-info">
+                        <div>Корабль: {{ .Spaceship_mass }} кг</div>
+                        <div>Топливо: {{ .Fuel_volume }} л.</div>
+                    </div>
+                    <div class="card-footer">
+                        <img src="/static/img/Icon-heart.png" alt="home">
+                        <span class="colon">:</span>
+                        <div class="like-count">{{ .Like_count }}</div>
+                    </div>
+                </div>
+            </a>
+            {{ end }}
+        </div>
+
+        <div id="bottom-bar">
+            <div class="circle-btn nav-btn "><a href="/vibes/1"><img src = "/static/img/Icon-home.png"></a></div>
+            <div class="circle-btn nav-btn "><a href="/create"><img src = "/static/img/Icon-plus.png"></a></div>
+            <div class="circle-btn nav-btn active"><img src = "/static/img/Icon-plates.png"></div>
+        </div>
+    </div>
+</body>
+</html>
