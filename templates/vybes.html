@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рейс {{ .PlanetPair.Planet_start }} → {{ .PlanetPair.Planet_end }}</title>
+    <link rel="stylesheet" href="/static/styles/vybes_style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="video-background">
+        <video autoplay muted loop playsinline id="bg-video">
+            <source src="{{ .VideoURL }}" type="video/mp4">
+        </video>
+    </div>
+
+    <div id="page">
+        <div id="content">
+            <div class="bottom-section">
+
+                <!-- Блок 1: название + иконки -->
+                <div class="header-block">
+                    <div class="title-area">
+                        <span class="PlanetPair-title">{{ .PlanetPair.Planet_start }} – {{ .PlanetPair.Planet_end }}</span>
+                    </div>
+
+                    <div class="icons-block">
+                        <div class="like-block">
+                            <img src="/static/img/Icon-likes.png" alt="Лайки" class="like-icon">
+                            <span class="like-count">{{len .PlanetPair.Like_count }}</span>
+                        </div>
+                        <a href="/planet_pairs/{{ .PlanetPair.ID }}?next=true" class="next-btn"><img src="/static/img/Icon-arrow.png"></a>
+                    </div>
+                </div>
+
+                <!-- Блок 2: description + info в одном блоке -->
+                <div class="content-block">
+                    <div class="description">
+                        <p class="description__content">{{ .PlanetPair.Special_info }}</p>
+                        <label>
+                            <input type="checkbox" class="description__toggle">
+
+                            <div class="description__more ">Узнать больше</div>
+                            <div class="description__less">Свернуть</div>
+                        </label>
+                    </div>
+
+                    <div class="info-block">
+                        <div class="info-row">
+                            <span class="info-value">{{ .PlanetPair.Distance }} св.л.</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Период:</span>
+                            <span class="info-value">{{ .PlanetPair.Closest_Period }} л.</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="bottom-bar">
+            <div class="nav-btn active"><a href="/planet_pairs/1"><img src="/static/img/Icon-home.png"></a></div>
+            <div class="nav-btn"><a href="/planet_pairs/create"><img src="/static/img/Icon-plus.png"></a></div>
+            <div class="nav-btn"><a href="/planet_pairs"><img src="/static/img/Icon-plates.png"></a></div>
+        </div>
+    </div>
+
+</body>
+</html>

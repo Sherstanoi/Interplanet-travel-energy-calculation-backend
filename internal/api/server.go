@@ -27,9 +27,9 @@ func StartServer() {
 	r.LoadHTMLGlob("../../templates/*")
 	r.Static("/static", "../../resources")
 
-	r.GET("/cards", handler.GetCards)
-	r.GET("/vibes/:id", handler.GetCard)
-	r.GET("/create", handler.GetDraft)
+	r.GET("/planet_pairs", handler.GetPlanetPairs)
+	r.GET("/planet_pairs/:id", handler.GetPlanetPair)
+	r.GET("/planet_pairs/create", handler.GetPlanetPairDraft)
 
 	r.Run()
 	log.Println("Server down")

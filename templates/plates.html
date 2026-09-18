@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>SpaceTravel</title>
+    <link rel="stylesheet" href="/static/styles/index_style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="page">
+        <div id="top-bar">
+            <form action="/planet_pairs" method="GET" class="search-form">
+                <div class="slider-block">
+                    <label class="slider-label" for="range_min">
+                        <span>Мин. расстояние:</span>
+                        <span class="slider-value">{{ .range_min }} св. лет</span>
+                    </label>
+                    <input type="range" id="range_min" name="range_min"
+                           class="range-slider"
+                           min="1" max="500000" step="1"
+                           value="{{ .range_min }}">
+
+                    <label class="slider-label" for="range_max">
+                        <span>Макс. расстояние:</span>
+                        <span class="slider-value">{{ .range_max }} св. лет</span>
+                    </label>
+                    <input type="range" id="range_max" name="range_max"
+                           class="range-slider"
+                           min="1" max="500000" step="1"
+                           value="{{ .range_max }}">
+                </div>
+
+                <button type="submit" class="circle-btn search-btn">
+                    <img src="/static/img/Icon-filter.png" alt="Фильтр">
+                </button>
+            </form>
+        </div>
+
+        <div id="content">
+            {{ range .PlanetPairs }}
+            <a href="/planet_pairs/{{ .ID }}" class="PlanetPair-link">
+                <div class="PlanetPair">
+                    {{ if .ImageURL }}
+                    <div class="PlanetPair-image">
+                        <img src="{{ .ImageURL }}" alt="{{ .Planet_start }} - {{ .Planet_end }}">
+                    </div>
+                    {{ else }}
+                    <div class="PlanetPair-image placeholder"></div>
+                    {{ end }}
+                    <div class="PlanetPair-title">{{ .Planet_start }} - {{ .Planet_end }}</div>
+                    <div class="PlanetPair-info">
+                        <div>Расстояние: {{ .Distance }}</div>
+                        <div>Ближайший период: {{ .Closest_Period }}</div>
+                    </div>
+                    <div class="PlanetPair-footer">
+                        <img src="/static/img/Icon-heart.png" alt="home">
+                        <span class="colon">:</span>
+                        <div class="like-count">{{ len .Like_count }}</div>
+                    </div>
+                </div>
+            </a>
+            {{ end }}
+        </div>
+
+        <div id="bottom-bar">
+            <div class="circle-btn nav-btn "><a href="/planet_pairs/1"><img src = "/static/img/Icon-home.png"></a></div>
+            <div class="circle-btn nav-btn "><a href="/planet_pairs/create"><img src = "/static/img/Icon-plus.png"></a></div>
+            <div class="circle-btn nav-btn active"><img src = "/static/img/Icon-plates.png"></div>
+        </div>
+    </div>
+</body>
+</html>

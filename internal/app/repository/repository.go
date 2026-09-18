@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -13,30 +12,30 @@ func NewRepository() (*Repository, error) {
 	return &Repository{}, nil
 }
 
-type Card struct {
+type PlanetPair struct {
 	ID             int
 	Planet_start   string
 	Planet_end     string
-	Spaceship_mass int
-	Fuel_volume    int
+	Distance       int
+	Closest_Period int
 	Status         string
 	Special_info   string
-	Like_count     int
+	Like_count     []int
 	ImageURL       string
 	VideoURL       string
 }
 
-func (r *Repository) GetCards() ([]Card, error) {
-	orders := []Card{
+func (r *Repository) GetPlanetPairs() ([]PlanetPair, error) {
+	orders := []PlanetPair{
 		{
 			ID:             1,
 			Planet_start:   "Земля",
 			Planet_end:     "Марс",
-			Spaceship_mass: 220,
-			Fuel_volume:    2,
+			Distance:       215000,
+			Closest_Period: 800,
 			Status:         "published",
 			Special_info:   "Занимательная поездка для всеё семьи! Ни оставит никого равнодушным. Взберитесь на горы олимпа, увидьте землю со стороны и насладитес просторами холодного и безжизненного космоса!",
-			Like_count:     13570,
+			Like_count:     []int{101, 102, 103, 1, 2, 3, 4},
 			ImageURL:       "Earth-Mars1.png",
 			VideoURL:       "Earth-Mars1Vid.mp4",
 		},
@@ -44,11 +43,11 @@ func (r *Repository) GetCards() ([]Card, error) {
 			ID:             2,
 			Planet_start:   "Марс",
 			Planet_end:     "Земля",
-			Spaceship_mass: 220,
-			Fuel_volume:    2,
+			Distance:       220000,
+			Closest_Period: 860,
 			Status:         "draft",
 			Special_info:   "aga",
-			Like_count:     13570,
+			Like_count:     []int{101, 102, 103, 1, 2, 3, 4},
 			ImageURL:       "Mars-Earth2.png",
 			VideoURL:       "Mars-Earth2Vid.mp4",
 		},
@@ -56,11 +55,11 @@ func (r *Repository) GetCards() ([]Card, error) {
 			ID:             3,
 			Planet_start:   "Земля",
 			Planet_end:     "Венера",
-			Spaceship_mass: 10,
-			Fuel_volume:    2,
+			Distance:       222000,
+			Closest_Period: 90,
 			Status:         "published",
 			Special_info:   "aga",
-			Like_count:     13570,
+			Like_count:     []int{101, 102, 111, 1022, 103, 1, 2, 3, 4},
 			ImageURL:       "Earth-Venera3.png",
 			VideoURL:       "Earth-Venera3Vid.mp4",
 		},
@@ -68,11 +67,11 @@ func (r *Repository) GetCards() ([]Card, error) {
 			ID:             4,
 			Planet_start:   "Венера",
 			Planet_end:     "Марс",
-			Spaceship_mass: 2000,
-			Fuel_volume:    2,
+			Distance:       300000,
+			Closest_Period: 150,
 			Status:         "published",
 			Special_info:   "aga",
-			Like_count:     13570,
+			Like_count:     []int{101, 1, 2, 3, 4},
 			ImageURL:       "Venera-Mars4.png",
 			VideoURL:       "Venera-Mars4Vid.mp4",
 		},
@@ -80,11 +79,11 @@ func (r *Repository) GetCards() ([]Card, error) {
 			ID:             5,
 			Planet_start:   "Юпитер",
 			Planet_end:     "Земля",
-			Spaceship_mass: 350,
-			Fuel_volume:    2,
+			Distance:       500000,
+			Closest_Period: 3400,
 			Status:         "published",
 			Special_info:   "aga",
-			Like_count:     13570,
+			Like_count:     []int{101, 40, 34, 111, 102, 103, 1, 2, 3, 4, 5, 6, 7},
 			ImageURL:       "Jupiter-Earth5.png",
 			VideoURL:       "Jupiter-Earth5Vid.mp4",
 		},
@@ -92,11 +91,11 @@ func (r *Repository) GetCards() ([]Card, error) {
 			ID:             6,
 			Planet_start:   "Юипитер",
 			Planet_end:     "Марс",
-			Spaceship_mass: 30,
-			Fuel_volume:    2,
+			Distance:       470500,
+			Closest_Period: 55,
 			Status:         "published",
 			Special_info:   "aga",
-			Like_count:     13570,
+			Like_count:     []int{101, 102},
 			ImageURL:       "Jupiter-Mars6.png",
 			VideoURL:       "Jupiter-Mars6Vid.mp4",
 		},
@@ -104,11 +103,11 @@ func (r *Repository) GetCards() ([]Card, error) {
 			ID:             7,
 			Planet_start:   "Сатурн",
 			Planet_end:     "Марс",
-			Spaceship_mass: 200,
-			Fuel_volume:    2,
+			Distance:       200,
+			Closest_Period: 20,
 			Status:         "deleted",
 			Special_info:   "aga",
-			Like_count:     13570,
+			Like_count:     []int{101, 102, 103, 1, 2, 3, 4},
 			ImageURL:       "Saturn-Mars7.jpeg",
 			VideoURL:       "Saturn-Mars7Vid.mp4",
 		},
@@ -121,61 +120,47 @@ func (r *Repository) GetCards() ([]Card, error) {
 	return orders, nil
 }
 
-func (r *Repository) GetPublishedCards() ([]Card, error) {
-	cards, err := r.GetCards()
+func (r *Repository) GetPublishedPlanetPairs() ([]PlanetPair, error) {
+	PlanetPairs, err := r.GetPlanetPairs()
 	if err != nil {
 		return nil, err
 	}
 
-	var published []Card
-	for _, card := range cards {
-		if strings.ToLower(card.Status) == "published" {
-			published = append(published, card)
+	var published []PlanetPair
+	for _, PlanetPair := range PlanetPairs {
+		if strings.ToLower(PlanetPair.Status) == "published" {
+			published = append(published, PlanetPair)
 		}
 	}
 	return published, nil
 }
 
-func (r *Repository) GetCard(id int) (Card, error) {
-	cards, err := r.GetPublishedCards()
-	if err != nil {
-		return Card{}, err
-	}
-
-	for _, card := range cards {
-		if card.ID == id {
-			return card, nil
-		}
-	}
-	return Card{}, fmt.Errorf("карточка не найдена")
-}
-
-func (r *Repository) GetCardsByMass(massStr string) ([]Card, error) {
-	cards, err := r.GetPublishedCards()
+func (r *Repository) GetPlanetPairsByRange(minRange, maxRange int) ([]PlanetPair, error) {
+	PlanetPairs, err := r.GetPublishedPlanetPairs()
 	if err != nil {
 		return nil, err
 	}
 
-	var result []Card
-	for _, card := range cards {
-		if strings.Contains(strconv.Itoa(card.Spaceship_mass), massStr) {
-			result = append(result, card)
+	var result []PlanetPair
+	for _, PlanetPair := range PlanetPairs {
+		if PlanetPair.Distance >= minRange && PlanetPair.Distance <= maxRange {
+			result = append(result, PlanetPair)
 		}
 	}
 	return result, nil
 }
 
-func (r *Repository) GetDraft() (Card, error) {
-	cards, err := r.GetCards()
+func (r *Repository) GetPlanetPairDraft() (PlanetPair, error) {
+	PlanetPairs, err := r.GetPlanetPairs()
 	if err != nil {
-		return Card{}, err
+		return PlanetPair{}, err
 	}
 
-	for _, card := range cards {
-		if strings.ToLower(card.Status) == "draft" {
-			return card, nil
+	for _, PlanetPair := range PlanetPairs {
+		if strings.ToLower(PlanetPair.Status) == "draft" {
+			return PlanetPair, nil
 		}
 	}
 
-	return Card{}, fmt.Errorf("нет черновика")
+	return PlanetPair{}, fmt.Errorf("нет черновика")
 }

@@ -1,0 +1,264 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Exo 2', sans-serif;
+    color: #262533;
+}
+
+body {
+    background-color: #000;
+    font-family: Arial, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+#video-background {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 428px;
+    height: 100vh;
+    z-index: 0;
+    background: #000;
+    overflow: hidden;
+}
+
+#bg-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#page {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: 88% 12%;
+    width: 430px;
+    min-height: 100vh;
+    margin: 0 auto;
+    box-sizing: border-box;
+    border-left: 2px solid #aaa;
+    border-right: 2px solid #aaa;
+}
+
+#content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 35px;
+}
+
+/* Нижняя секция — флекс-колонка, прижата к низу.
+   position: relative — точка отсчёта для абсолютного блока иконок. */
+.bottom-section {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 0 10px 10px;
+}
+
+/* ---------- Блок 1: название + иконки ---------- */
+.header-block {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.title-area {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.PlanetPair-title {
+    display: inline-block;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 15px;
+    padding: 8px 15px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Иконки: вынесены из потока → не сдвигаются при расширении
+   блока description. bottom задаёт фиксированное расстояние
+   от низа страницы. */
+.icons-block {
+    position: absolute;
+    right: 20px;
+    bottom: 110px;      /* «чуть повыше» — можно подправить под себя */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 2;
+}
+
+.like-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 70px;
+}
+
+.like-icon {
+    width: 45px;
+    height: 45px;
+    display: block;
+}
+
+.like-count {
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+    margin-top: 2px;
+}
+
+.next-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: #000;
+    text-decoration: none;
+    transition: 0.2s;
+    flex-shrink: 0;
+}
+
+.next-btn:hover {
+    background: #e0e0e0;
+    transform: scale(1.05);
+}
+
+/* ---------- Блок 2: description + info в один ряд ----------
+   Обёртка без фона, только раскладка. Зазор между плашками — gap. */
+.content-block {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 10px;
+    width: 100%;
+}
+
+.description {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0, 0, 0, 0.5);   /* отдельный фон */
+    border-radius: 15px;
+    padding: 8px 15px;
+    box-sizing: border-box;
+}
+
+.description__toggle {
+    position: absolute;
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+}
+
+.description__content {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    color: #bbb;
+    font-size: 18px;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.description__more, .description__less {
+    color: #999;
+    font-size: 16px;
+    margin-top: 8px;
+}
+
+.description:has(.description__toggle:checked) .description__content {
+    -webkit-line-clamp: unset;
+}
+
+.description__less,
+.description:has(.description__toggle:checked) .description__more {
+    display: none;
+}
+
+.description__more,
+.description:has(.description__toggle:checked) .description__less {
+    display: block;
+}
+
+.info-block {
+    flex-shrink: 0;
+    display: inline-flex;
+    flex-direction: column;
+    background: rgba(0, 0, 0, 0.5);   /* отдельный фон */
+    border-radius: 15px;
+    padding: 10px 15px;
+    width: fit-content;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    padding: 4px 0;
+}
+
+.info-label {
+    color: #fff;
+    font-weight: bold;
+}
+
+.info-value {
+    color: #fff;
+    font-weight: 500;
+}
+
+/* ---------- Нижняя навигация ---------- */
+#bottom-bar {
+    background-color: #000;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.nav-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: #222;
+    border: none;
+    cursor: pointer;
+    transition: 0.2s;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-btn:hover {
+    background-color: #555;
+    transform: scale(1.05);
+}
+
+.nav-btn.active {
+    background-color: #6200ea;
+}

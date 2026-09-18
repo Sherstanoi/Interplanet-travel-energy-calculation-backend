@@ -1,9 +1,8 @@
 package main
 
 import (
-	"log"
-
 	"lab1/internal/api"
+	"log"
 )
 
 func main() {
