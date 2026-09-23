@@ -40,27 +40,34 @@
 
         <div id="content">
             {{ range .PlanetPairs }}
-            <a href="/planet_pairs/{{ .ID }}" class="PlanetPair-link">
                 <div class="PlanetPair">
-                    {{ if .ImageURL }}
-                    <div class="PlanetPair-image">
-                        <img src="{{ .ImageURL }}" alt="{{ .Planet_start }} - {{ .Planet_end }}">
-                    </div>
-                    {{ else }}
-                    <div class="PlanetPair-image placeholder"></div>
-                    {{ end }}
-                    <div class="PlanetPair-title">{{ .Planet_start }} - {{ .Planet_end }}</div>
-                    <div class="PlanetPair-info">
-                        <div>Расстояние: {{ .Distance }}</div>
-                        <div>Ближайший период: {{ .Closest_Period }}</div>
-                    </div>
-                    <div class="PlanetPair-footer">
-                        <img src="/static/img/Icon-heart.png" alt="home">
-                        <span class="colon">:</span>
-                        <div class="like-count">{{ len .Like_count }}</div>
-                    </div>
+
+                    <form method="POST" action="/planet_pairs/{{ .ID }}/delete" class="delete-form">
+                        <button type="submit" class="PlanetPair-delete" title="Удалить">
+                            <img src="/static/img/Icon-x.png" alt="Удалить">
+                        </button>
+                    </form>
+
+                    <a href="/planet_pairs/{{ .ID }}" class="PlanetPair-link">
+                        <div class="PlanetPair-image">
+                            <img src="{{ .PhotoURL }}" alt="{{ .PlanetPair.PlanetStart }} - {{ .PlanetPair.PlanetEnd }}">
+                        </div>
+
+                        <div class="PlanetPair-title">{{ .PlanetPair.PlanetStart }} - {{ .PlanetPair.PlanetEnd }}</div>
+
+                        <div class="PlanetPair-info">
+                            <div>Расстояние: {{ .PlanetPair.Distance }}</div>
+                            <div>Сближение: {{ .PlanetPair.Period }} лет</div>
+                        </div>
+
+                        <div class="PlanetPair-footer">
+                            <img src="/static/img/Icon-heart.png" alt="like">
+                            <span class="colon">:</span>
+                            <div class="like-count">{{ .LikeCount }}</div>
+                        </div>
+                    </a>
+
                 </div>
-            </a>
             {{ end }}
         </div>
 

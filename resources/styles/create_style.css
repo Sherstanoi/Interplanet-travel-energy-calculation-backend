@@ -51,7 +51,25 @@ body {
     min-height: 100%;
 }
 
-/* ---------- Верхний блок: медиа + зоны превью ---------- */
+.error-message {
+    background: #3a0f0f;
+    color: #ff6b6b;
+    border: 1px solid #8b2222;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-top: 14px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.error-message div + div {
+    margin-top: 4px;
+}
+
+.error-message, .error-message div {
+    color: #ff6b6b;
+}
+
 .media-section {
     display: flex;
     flex-direction: column;
@@ -64,7 +82,6 @@ body {
     gap: 10px;
 }
 
-/* Подпись и кнопка выбора файла — в одну строку */
 .media-header {
     display: flex;
     align-items: center;
@@ -108,7 +125,6 @@ body {
     border-color: #6200ea;
 }
 
-/* Прозрачные зоны превью с серыми скруглёнными уголками */
 .preview-box {
     background: transparent;
     border: 2px solid #555;
@@ -121,19 +137,16 @@ body {
     width: 100%;
 }
 
-/* Фото — квадрат */
 .preview-photo {
     max-width: 150px;
     aspect-ratio: 1 / 1;
 }
 
-/* Видео — вытянуто вверх (портретный формат 9:16) */
 .preview-video {
     max-width: 130px;
     aspect-ratio: 9 / 13;
 }
 
-/* Текст по центру блока */
 .preview-text {
     color: #888;
     font-size: 20px;
@@ -142,7 +155,6 @@ body {
     user-select: none;
 }
 
-/* Если позже вставишь реальные <img>/<video> — они впишутся */
 .preview-box img,
 .preview-box video {
     max-width: 92%;
@@ -152,7 +164,6 @@ body {
     border-radius: 8px;
 }
 
-/* ---------- Нижний блок: текстовые поля, прижат к низу ---------- */
 .fields-section {
     margin-top: auto;
     padding-top: 24px;
@@ -210,7 +221,42 @@ body {
     border-bottom-color: #6200ea;
 }
 
-/* ---------- Нижняя навигация ---------- */
+.submit-btn {
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+    padding: 14px 0;
+    background-color: #6200ea;
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: background-color 0.25s ease, transform 0.15s ease;
+}
+
+.submit-btn:hover {
+    background-color: #7c1fff;
+    transform: scale(1.02);
+}
+
+.submit-btn:active {
+    transform: scale(0.98);
+}
+
+.fields-section-top {
+    margin-bottom: 20px;
+}
+
+.create-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
 #bottom-bar {
     background-color: #000;
     display: flex;

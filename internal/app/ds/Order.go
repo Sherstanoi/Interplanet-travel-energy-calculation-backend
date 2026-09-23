@@ -1,26 +1,9 @@
-package repository
+package ds
 
-import (
-	"time"
-
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-)
-
-type Repository struct {
-	db *gorm.DB
-}
-
-func NewRepository(dsn string) (*Repository, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return nil, err
-	}
-	return &Repository{db: db}, nil
-}
+import "time"
 
 type PlanetPair struct {
-	ID           int       `gorm:"column:planetpairs_id;primaryKey"`
+	ID int `gorm:"column:planetpairs_id;primaryKey;autoIncrement"`
 	PlanetStart  string    `gorm:"column:planet_start"`
 	PlanetEnd    string    `gorm:"column:planet_end"`
 	Description  string    `gorm:"column:description"`
@@ -32,6 +15,8 @@ type PlanetPair struct {
 	CreationTime time.Time `gorm:"column:creation_time"`
 	FormingTime  time.Time `gorm:"column:forming_time"`
 	CreatorID    int       `gorm:"column:creator_id"`
+
+	Creator User `gorm:"foreignKey:CreatorID;references:ID"`
 }
 
 func (PlanetPair) TableName() string {

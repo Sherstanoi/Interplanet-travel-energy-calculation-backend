@@ -31,7 +31,7 @@ func InitMinio() {
 	log.Println("Minio client initialized")
 }
 
-func GetImageURL(objectName string) (string, error) {
+func GetPhotoURL(objectName string) (string, error) {
 	if MinioClient == nil {
 		return "", fmt.Errorf("Minio client не инициализирован")
 	}
