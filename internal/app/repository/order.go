@@ -87,7 +87,7 @@ func (r *Repository) GetNextPublishedPlanetPair(id int) (PlanetPair, error) {
 
 func (r *Repository) GetDraftByCreator(creatorID int) (*PlanetPair, error) {
 	var pp PlanetPair
-	err := r.db.
+	err   := r.db.
 		Where("creator_id = ? AND status = ?", creatorID, "draft").
 		First(&pp).Error
 	if err != nil {
