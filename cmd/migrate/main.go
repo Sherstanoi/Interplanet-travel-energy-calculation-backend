@@ -21,6 +21,11 @@ func main() {
 		&ds.PlanetPair{},
 		&ds.Like{},
 	)
+	err = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_one_draft_per_user
+		ON planet_pairs (creator_id) WHERE status = 'draft'`).Error
+	if err != nil {
+		panic("cant create draft index")
+	}
 	if err != nil {
 		panic("cant migrate db")
 	}

@@ -14,6 +14,7 @@
         <div id="content">
 
             {{ if .IsDraft }}
+            <!-- ================= РЕЖИМ ПУБЛИКАЦИИ ================= -->
             <form method="POST" action="/planet_pairs/publish" class="create-form">
 
                 <div class="media-section">
@@ -63,19 +64,14 @@
             </form>
 
             {{ else }}
+            <!-- ================= РЕЖИМ СОЗДАНИЯ ================= -->
             <form method="POST" action="/planet_pairs/create" enctype="multipart/form-data" class="create-form">
 
                 <div class="fields-section-top">
                     <div class="field-group">
-                        <span class="field-label">Планета-отправитель:</span>
-                        <input class="field-value" type="text" name="PlanetStart"
-                               value="{{ .FormPlanetStart }}" placeholder="Введите название">
-                    </div>
-
-                    <div class="field-group">
-                        <span class="field-label">Планета-получатель:</span>
-                        <input class="field-value" type="text" name="PlanetEnd"
-                               value="{{ .FormPlanetEnd }}" placeholder="Введите название">
+                        <span class="field-label">Название:</span>
+                        <input class="field-value" type="text" name="Name"
+                               value="{{ .FormName }}" placeholder="Введите название">
                     </div>
                 </div>
 
@@ -86,7 +82,7 @@
                             <input class="file-input" type="file" name="photo" accept="image/*">
                         </div>
                         <div class="preview-box preview-photo">
-                            <span class="preview-text">Фото</span>
+                            <img src="/static/img/defaultPhotoURL.png" alt="Фото">
                         </div>
                     </div>
 
@@ -96,7 +92,7 @@
                             <input class="file-input" type="file" name="video" accept="video/*">
                         </div>
                         <div class="preview-box preview-video">
-                            <span class="preview-text">Видео</span>
+                            <video src="/static/img/defaultVideoURL.mp4" autoplay muted loop playsinline></video>
                         </div>
                     </div>
                 </div>

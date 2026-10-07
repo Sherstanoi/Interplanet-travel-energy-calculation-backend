@@ -43,17 +43,15 @@
                 <div class="PlanetPair">
 
                     <form method="POST" action="/planet_pairs/{{ .ID }}/delete" class="delete-form">
-                        <button type="submit" class="PlanetPair-delete" title="Удалить">
-                            <img src="/static/img/Icon-x.png" alt="Удалить">
-                        </button>
+                        <button type="submit" class="PlanetPair-delete" title="Удалить">✕</button>
                     </form>
 
                     <a href="/planet_pairs/{{ .ID }}" class="PlanetPair-link">
                         <div class="PlanetPair-image">
-                            <img src="{{ .PhotoURL }}" alt="{{ .PlanetPair.PlanetStart }} - {{ .PlanetPair.PlanetEnd }}">
+                            <img src="{{ .PhotoURL }}" alt="{{ .PlanetPair.Name }}">
                         </div>
 
-                        <div class="PlanetPair-title">{{ .PlanetPair.PlanetStart }} - {{ .PlanetPair.PlanetEnd }}</div>
+                        <div class="PlanetPair-title">{{ .PlanetPair.Name }}</div>
 
                         <div class="PlanetPair-info">
                             <div>Расстояние: {{ .PlanetPair.Distance }}</div>

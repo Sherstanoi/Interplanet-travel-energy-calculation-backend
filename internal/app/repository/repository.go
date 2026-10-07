@@ -21,8 +21,7 @@ func NewRepository(dsn string) (*Repository, error) {
 
 type PlanetPair struct {
 	ID           int       `gorm:"column:planetpairs_id;primaryKey"`
-	PlanetStart  string    `gorm:"column:planet_start"`
-	PlanetEnd    string    `gorm:"column:planet_end"`
+	Name         string    `gorm:"column:name"`
 	Description  string    `gorm:"column:description"`
 	Status       string    `gorm:"column:status"`
 	PhotoURL     string    `gorm:"column:photo_url"`

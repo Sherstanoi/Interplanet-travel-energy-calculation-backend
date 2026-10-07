@@ -52,8 +52,6 @@ body {
     margin-top: 35px;
 }
 
-/* Нижняя секция — флекс-колонка, прижата к низу.
-   position: relative — точка отсчёта для абсолютного блока иконок. */
 .bottom-section {
     position: relative;
     flex: 1;
@@ -64,7 +62,7 @@ body {
     padding: 0 10px 10px;
 }
 
-/* ---------- Блок 1: название + иконки ---------- */
+/* ---------- Заголовок + иконки ---------- */
 .header-block {
     display: flex;
     flex-direction: row;
@@ -91,13 +89,10 @@ body {
     overflow-wrap: break-word;
 }
 
-/* Иконки: вынесены из потока → не сдвигаются при расширении
-   блока description. bottom задаёт фиксированное расстояние
-   от низа страницы. */
 .icons-block {
     position: absolute;
     right: 20px;
-    bottom: 110px;      /* «чуть повыше» — можно подправить под себя */
+    bottom: 110px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -125,30 +120,36 @@ body {
     margin-top: 2px;
 }
 
+/* Кнопка "next" — скруглённая, тёмная */
 .next-btn {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: #fff;
+    width: 90px;
+    height: 60px;
+    border-radius: 22px;
+    background: #222;
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 32px;
-    color: #000;
+    color: #6200ea;
     text-decoration: none;
-    transition: 0.2s;
+    transition: background-color 0.2s ease, transform 0.15s ease;
     flex-shrink: 0;
 }
 
 .next-btn:hover {
-    background: #e0e0e0;
+    background: #333;
     transform: scale(1.05);
 }
 
-/* ---------- Блок 2: description + info в один ряд ----------
-   Обёртка без фона, только раскладка. Зазор между плашками — gap. */
+.next-btn img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+/* ---------- description + info ---------- */
 .content-block {
     display: flex;
     flex-direction: row;
@@ -160,7 +161,7 @@ body {
 .description {
     flex: 1;
     min-width: 0;
-    background: rgba(0, 0, 0, 0.5);   /* отдельный фон */
+    background: rgba(0, 0, 0, 0.5);
     border-radius: 15px;
     padding: 8px 15px;
     box-sizing: border-box;
@@ -184,7 +185,8 @@ body {
     margin: 0;
 }
 
-.description__more, .description__less {
+.description__more,
+.description__less {
     color: #999;
     font-size: 16px;
     margin-top: 8px;
@@ -208,7 +210,7 @@ body {
     flex-shrink: 0;
     display: inline-flex;
     flex-direction: column;
-    background: rgba(0, 0, 0, 0.5);   /* отдельный фон */
+    background: rgba(0, 0, 0, 0.5);
     border-radius: 15px;
     padding: 10px 15px;
     width: fit-content;
@@ -232,33 +234,45 @@ body {
     font-weight: 500;
 }
 
-/* ---------- Нижняя навигация ---------- */
+/* ---------- Нижнее меню ---------- */
 #bottom-bar {
     background-color: #000;
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
     align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    box-sizing: border-box;
 }
 
 .nav-btn {
-    width: 80px;
+    flex: 1;
     height: 80px;
-    border-radius: 50%;
+    border-radius: 22px;
     background-color: #222;
     border: none;
     cursor: pointer;
-    transition: 0.2s;
+    transition: background-color 0.2s ease, transform 0.15s ease;
     outline: none;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #6F19F7;
 }
 
 .nav-btn:hover {
-    background-color: #555;
-    transform: scale(1.05);
+    background-color: #333;
+    transform: scale(1.02);
 }
 
 .nav-btn.active {
-    background-color: #6200ea;
+    background-color: #fff;
+}
+
+.nav-btn img {
+    filter: invert(17%) sepia(97%) saturate(6481%) hue-rotate(268deg) brightness(91%) contrast(112%);
+}
+
+.nav-btn.active img {
+    filter: invert(17%) sepia(97%) saturate(6481%) hue-rotate(268deg) brightness(91%) contrast(112%);
 }

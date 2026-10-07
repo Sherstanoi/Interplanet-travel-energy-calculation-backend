@@ -99,7 +99,7 @@ func (h *Handler) GetPlanetPairs(ctx *gin.Context) {
 		})
 	}
 
-	ctx.HTML(http.StatusOK, "plates.html", gin.H{
+	ctx.HTML(http.StatusOK, "planet_pairs_plates.html", gin.H{
 		"PlanetPairs": planetPairsWithImages,
 		"range_min":   minRange,
 		"range_max":   maxRange,
@@ -155,7 +155,7 @@ func (h *Handler) GetPlanetPair(ctx *gin.Context) {
 		likeCount = 0
 	}
 
-	ctx.HTML(http.StatusOK, "vybes.html", gin.H{
+	ctx.HTML(http.StatusOK, "planet_pairs_vybes.html", gin.H{
 		"PlanetPair": planetPair,
 		"PhotoURL":   imageURL,
 		"VideoURL":   videoURL,
@@ -172,8 +172,10 @@ func (h *Handler) GetPlanetPairDraft(ctx *gin.Context) {
 	}
 
 	if draft == nil {
-		ctx.HTML(http.StatusOK, "create.html", gin.H{
-			"IsDraft": false,
+		ctx.HTML(http.StatusOK, "planet_pairs_create.html", gin.H{
+			"IsDraft":  false,
+			"PhotoURL": defaultPhotoURL,
+			"VideoURL": defaultVideoURL,
 		})
 		return
 	}
@@ -196,7 +198,7 @@ func (h *Handler) GetPlanetPairDraft(ctx *gin.Context) {
 		}
 	}
 
-	ctx.HTML(http.StatusOK, "create.html", gin.H{
+	ctx.HTML(http.StatusOK, "planet_pairs_create.html", gin.H{
 		"IsDraft":    true,
 		"PlanetPair": draft,
 		"PhotoURL":   photoURL,
@@ -205,30 +207,24 @@ func (h *Handler) GetPlanetPairDraft(ctx *gin.Context) {
 }
 
 func (h *Handler) CreatePlanetPair(ctx *gin.Context) {
-	planetStart := strings.TrimSpace(ctx.PostForm("PlanetStart"))
-	planetEnd := strings.TrimSpace(ctx.PostForm("PlanetEnd"))
+	name := strings.TrimSpace(ctx.PostForm("Name"))
 
 	var validationErrors []string
-	if planetStart == "" {
-		validationErrors = append(validationErrors, "Укажите планету-отправителя")
-	}
-	if planetEnd == "" {
-		validationErrors = append(validationErrors, "Укажите планету-получателя")
+	if name == "" {
+		validationErrors = append(validationErrors, "Укажите название")
 	}
 
 	if len(validationErrors) > 0 {
-		ctx.HTML(http.StatusOK, "create.html", gin.H{
-			"IsDraft":         false,
-			"Errors":          validationErrors,
-			"FormPlanetStart": planetStart,
-			"FormPlanetEnd":   planetEnd,
+		ctx.HTML(http.StatusOK, "planet_pairs_create.html", gin.H{
+			"IsDraft":  false,
+			"Errors":   validationErrors,
+			"FormName": name,
 		})
 		return
 	}
 
 	pp := repository.PlanetPair{
-		PlanetStart:  planetStart,
-		PlanetEnd:    planetEnd,
+		Name:         name,
 		Status:       "draft",
 		CreationTime: time.Now(),
 		FormingTime:  time.Now(),
@@ -300,7 +296,7 @@ func (h *Handler) PublishPlanetPair(ctx *gin.Context) {
 			}
 		}
 
-		ctx.HTML(http.StatusOK, "create.html", gin.H{
+		ctx.HTML(http.StatusOK, "planet_pairs_create.html", gin.H{
 			"IsDraft":    true,
 			"PlanetPair": draft,
 			"PhotoURL":   photoURL,

@@ -75,24 +75,7 @@ body {
 
 .range-slider {
     width: 100%;
-    height: 14px;             
-    margin: 0;
-    background: transparent;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-}
-
-.range-slider::-webkit-slider-runnable-track {
-    height: 4px;
-    border: 0;
-    background-color: #6200ea;
-    border-radius: 2px;
-}
-
-.range-slider {
-    width: 100%;
-    height: 24px;            
+    height: 24px;
     margin: 0;
     background: transparent;
     cursor: pointer;
@@ -115,7 +98,7 @@ body {
     background-color: #6200ea;
     border: 2px solid #6200ea;
     border-radius: 50%;
-    margin-top: -7px;         
+    margin-top: -7px;
     box-sizing: border-box;
 }
 
@@ -135,29 +118,40 @@ body {
     box-sizing: border-box;
 }
 
+/* =======================  КНОПКИ  ======================= */
+
 .circle-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
     border: none;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     flex-shrink: 0;
+    background-color: #222;
+    border-radius: 22px;
+    color: #6200ea;
 }
 
+/* Кнопка фильтрации — узкая и вытянутая ввысь */
 .search-form .circle-btn {
-    background-color: #fff;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 68px;
+    border-radius: 15px;
+    background-color: #222;
     align-self: center;
+    transition: background-color 0.2s ease;
+}
+
+.search-form .circle-btn:hover {
+    background-color: #333;
 }
 
 .search-form .circle-btn img {
     width: 22px;
     height: 22px;
 }
+
+/* =======================  КАРТОЧКИ  ======================= */
 
 #content {
     overflow-y: auto;
@@ -169,13 +163,8 @@ body {
     align-content: start;
 }
 
-.PlanetPair-link {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-}
-
 .PlanetPair {
+    position: relative;
     background-color: #fff;
     color: #000;
     padding: 15px;
@@ -186,6 +175,15 @@ body {
     box-sizing: border-box;
     min-height: 320px;
     border-radius: 22px;
+}
+
+.PlanetPair-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
 }
 
 .PlanetPair-title {
@@ -251,59 +249,7 @@ body {
     font-weight: bold;
 }
 
-#bottom-bar {
-    background-color: #000;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-}
-
-.nav-btn {
-    width: 80px;
-    height: 80px;
-    background-color: #222;
-}
-
-.nav-btn:hover {
-    background-color: #555;
-    transform: scale(1.05);
-}
-
-.nav-btn.active {
-    background-color: #6200ea;
-}
-
-#content::-webkit-scrollbar {
-    display: none;
-}
-
-#content {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-.PlanetPair {
-    position: relative;
-    background-color: #fff;
-    color: #000;
-    padding: 15px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    box-sizing: border-box;
-    min-height: 320px;
-    border-radius: 22px;
-}
-
-.PlanetPair-link {
-    text-decoration: none;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    height: 100%;
-}
+/* =======================  КРЕСТИК УДАЛЕНИЯ  ======================= */
 
 .delete-form {
     position: absolute;
@@ -319,20 +265,76 @@ body {
     height: 34px;
     padding: 0;
     border: none;
-    background: transparent;
+    background: #222;
     cursor: pointer;
-    display: block;
-    transition: transform 1.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: #6200ea;
+    font-size: 22px;
+    font-weight: bold;
+    font-family: 'Exo 2', sans-serif;
+    line-height: 1;
+    transition: transform 1.2s ease, color 0.3s ease;
     transform-origin: center center;
-}
-
-.PlanetPair-delete img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
 }
 
 .PlanetPair-delete:hover {
     transform: scale(1.12);
+}
+
+/* =======================  НИЖНЕЕ МЕНЮ  ======================= */
+
+#bottom-bar {
+    background-color: #000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    box-sizing: border-box;
+}
+
+.nav-btn {
+    flex: 1;
+    height: 80px;
+    border-radius: 22px;
+    background-color: #222;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6200ea;
+}
+
+.nav-btn:hover {
+    background-color: #333;
+    transform: scale(1.02);
+}
+
+.nav-btn.active {
+    background-color: #fff;
+}
+
+/* Иконки внутри меню — фиолетовые */
+.nav-btn img {
+    filter: invert(17%) sepia(97%) saturate(6481%) hue-rotate(268deg) brightness(91%) contrast(112%);
+}
+
+/* На активной (белой) кнопке иконки тоже фиолетовые */
+.nav-btn.active img {
+    filter: invert(17%) sepia(97%) saturate(6481%) hue-rotate(268deg) brightness(91%) contrast(112%);
+}
+
+#content::-webkit-scrollbar {
+    display: none;
+}
+
+#content {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }

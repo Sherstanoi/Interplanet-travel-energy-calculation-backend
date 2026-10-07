@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"time"
 
@@ -28,6 +29,16 @@ func InitMinio() {
 	}
 
 	MinioClient = minioClient
+	ctx := context.Background()
+	exists, err := minioClient.BucketExists(ctx, BucketName)
+	if err != nil {
+		log.Fatalln("Ошибка проверки бакета:", err)
+	}
+	if !exists {
+		if err := minioClient.MakeBucket(ctx, BucketName, minio.MakeBucketOptions{}); err != nil {
+			log.Fatalln("Ошибка создания бакета:", err)
+		}
+	}
 	log.Println("Minio client initialized")
 }
 
@@ -53,4 +64,22 @@ func GetPhotoURL(objectName string) (string, error) {
 	}
 
 	return presignedURL.String(), nil
+}
+
+// UploadObject кладет файл в бакет под сгенерированным именем.
+func UploadObject(ctx context.Context, objectName string, r io.Reader, size int64, contentType string) error {
+	if MinioClient == nil {
+		return fmt.Errorf("Minio client не инициализирован")
+	}
+	_, err := MinioClient.PutObject(ctx, BucketName, objectName, r, size,
+		minio.PutObjectOptions{ContentType: contentType})
+	return err
+}
+
+// RemoveObject нужен для отката, если запись в БД не удалась.
+func RemoveObject(ctx context.Context, objectName string) error {
+	if MinioClient == nil {
+		return fmt.Errorf("Minio client не инициализирован")
+	}
+	return MinioClient.RemoveObject(ctx, BucketName, objectName, minio.RemoveObjectOptions{})
 }
