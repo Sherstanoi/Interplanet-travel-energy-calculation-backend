@@ -40,25 +40,16 @@ func (h *Handler) RegisterUserAPI(ctx *gin.Context) {
 		return
 	}
 
-	// Хеш пароля наружу не отдаем: возвращаем только нужные поля.
-	ctx.JSON(http.StatusCreated, gin.H{
-		"status": "success",
-		"data":   gin.H{"id": user.ID, "username": user.Username},
-	})
+	// Хеш пароля наружу не отдаем.
+	ctx.JSON(http.StatusCreated, gin.H{"id": user.ID, "username": user.Username})
 }
 
-// POST /api/auth/login - заглушка для ЛР4
+// POST /api/auth/login - заглушка для ЛР4, 200 без тела
 func (h *Handler) LoginAPI(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  "success",
-		"message": "заглушка: аутентификация будет реализована в ЛР4",
-	})
+	ctx.Status(http.StatusOK)
 }
 
-// POST /api/auth/logout - заглушка для ЛР4
+// POST /api/auth/logout - заглушка для ЛР4, 200 без тела
 func (h *Handler) LogoutAPI(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  "success",
-		"message": "заглушка: деавторизация будет реализована в ЛР4",
-	})
+	ctx.Status(http.StatusOK)
 }

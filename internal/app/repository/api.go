@@ -26,9 +26,16 @@ var (
 	ErrForbidden     = errors.New("действие разрешено только создателю")
 	ErrWrongStatus   = errors.New("недопустимый переход статуса")
 	ErrDraftExists   = errors.New("у пользователя уже есть черновик")
-	ErrIncomplete    = errors.New("не заполнены обязательные поля для публикации")
 	ErrUsernameTaken = errors.New("имя пользователя уже занято")
 )
+
+// PublishInput - поля, которые заполняются при PUT (публикации).
+// name, фото и видео задаются при POST, поэтому здесь их нет.
+type PublishInput struct {
+	Description string
+	Distance    int
+	Period      int
+}
 
 // GetPublishedFiltered - список опубликованных с фильтром по расстоянию.
 // nil означает "ограничения нет".
@@ -47,18 +54,31 @@ func (r *Repository) GetPublishedFiltered(minRange, maxRange *int) ([]PlanetPair
 	return res, nil
 }
 
-// GetPublishedFeed - лента: новые сверху, с пагинацией.
-func (r *Repository) GetPublishedFeed(limit, offset int) ([]PlanetPair, error) {
+// GetPublishedFeed - лента: все опубликованные, по возрастанию id.
+func (r *Repository) GetPublishedFeed() ([]PlanetPair, error) {
 	var res []PlanetPair
 	err := r.db.
 		Where("status ILIKE ?", StatusPublished).
-		Order("forming_time DESC, planetpairs_id DESC").
-		Limit(limit).Offset(offset).
+		Order("planetpairs_id ASC").
 		Find(&res).Error
 	if err != nil {
 		return nil, err
 	}
 	return res, nil
+}
+
+// GetNextPublished - следующая за afterID опубликованная карточка.
+// Использует существующий GetNextPublishedPlanetPair (после последней - первая).
+// afterID = 0 даёт первую карточку ленты.
+func (r *Repository) GetNextPublished(afterID int) (*PlanetPair, error) {
+	pp, err := r.GetNextPublishedPlanetPair(afterID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &pp, nil
 }
 
 // CreateDraft создает услугу-черновик; у пользователя не более одного черновика.
@@ -91,8 +111,9 @@ func (r *Repository) getAlive(tx *gorm.DB, id int) (*PlanetPair, error) {
 	return &pp, nil
 }
 
-// PublishPlanetPair: draft -> published, только создатель, только полностью заполненный.
-func (r *Repository) PublishPlanetPair(id, userID int) (*PlanetPair, error) {
+// PublishPlanetPair: заполняет остальные поля и меняет draft -> published.
+// Только создатель, только из статуса draft.
+func (r *Repository) PublishPlanetPair(id, userID int, in PublishInput) (*PlanetPair, error) {
 	var result *PlanetPair
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		pp, err := r.getAlive(tx, id)
@@ -105,17 +126,24 @@ func (r *Repository) PublishPlanetPair(id, userID int) (*PlanetPair, error) {
 		if !strings.EqualFold(pp.Status, StatusDraft) {
 			return fmt.Errorf("%w: из статуса %q публикация невозможна", ErrWrongStatus, pp.Status)
 		}
-		if strings.TrimSpace(pp.Description) == "" || pp.Distance <= 0 || pp.Period <= 0 {
-			return fmt.Errorf("%w (description, distance > 0, period > 0)", ErrIncomplete)
-		}
 
 		now := time.Now()
 		err = tx.Model(&PlanetPair{}).
 			Where("planetpairs_id = ?", id).
-			Updates(map[string]any{"status": StatusPublished, "forming_time": now}).Error
+			Updates(map[string]any{
+				"description":  in.Description,
+				"distance":     in.Distance,
+				"period":       in.Period,
+				"status":       StatusPublished,
+				"forming_time": now,
+			}).Error
 		if err != nil {
 			return err
 		}
+
+		pp.Description = in.Description
+		pp.Distance = in.Distance
+		pp.Period = in.Period
 		pp.Status = StatusPublished
 		pp.FormingTime = now
 		result = pp
@@ -157,7 +185,6 @@ func (r *Repository) SetLike(userID, pairID int, like bool) (int, error) {
 	}
 
 	if like {
-		// Повторный лайк не ошибка: ON CONFLICT DO NOTHING (уникальный индекс user+pair).
 		err = r.db.
 			Omit(clause.Associations).
 			Clauses(clause.OnConflict{DoNothing: true}).
@@ -170,7 +197,7 @@ func (r *Repository) SetLike(userID, pairID int, like bool) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return r.GetLikeCountByPairID(pairID) // уже есть в вашем order.go
+	return r.GetLikeCountByPairID(pairID)
 }
 
 // GetLikedByUser возвращает множество id услуг, которые лайкнул пользователь.

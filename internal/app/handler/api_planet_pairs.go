@@ -29,7 +29,7 @@ const (
 )
 
 // ---------- Ответ клиенту (DTO) ----------
-// Отдельная структура, чтобы наружу не утекали лишние поля и имена были в snake_case.
+// IsMine и LikedByMe - указатели с omitempty: nil -> поля нет в JSON, указатель на 0 -> выводится 0.
 type planetPairResponse struct {
 	ID           int       `json:"id"`
 	Name         string    `json:"name"`
@@ -42,9 +42,9 @@ type planetPairResponse struct {
 	CreationTime time.Time `json:"creation_time"`
 	FormingTime  time.Time `json:"forming_time"`
 	CreatorID    int       `json:"creator_id"`
-	IsMine       int       `json:"is_mine"`
 	LikeCount    int       `json:"like_count"`
-	LikedByMe    int       `json:"liked_by_me"`
+	IsMine       *int      `json:"is_mine,omitempty"`     // только в обычном списке
+	LikedByMe    *int      `json:"liked_by_me,omitempty"` // только в ленте
 }
 
 func b2i(b bool) int {
@@ -53,6 +53,8 @@ func b2i(b bool) int {
 	}
 	return 0
 }
+
+func intPtr(v int) *int { return &v }
 
 // mediaURL превращает имя объекта из БД во временную ссылку на MinIO.
 func mediaURL(objectName string) string {
@@ -67,7 +69,8 @@ func mediaURL(objectName string) string {
 	return u
 }
 
-func (h *Handler) buildResponses(pairs []repository.PlanetPair) []planetPairResponse {
+// buildResponses собирает DTO. withIsMine / withLiked включают необязательные поля.
+func (h *Handler) buildResponses(pairs []repository.PlanetPair, withIsMine, withLiked bool) []planetPairResponse {
 	userID := auth.CurrentUserID()
 
 	ids := make([]int, 0, len(pairs))
@@ -79,15 +82,19 @@ func (h *Handler) buildResponses(pairs []repository.PlanetPair) []planetPairResp
 		logrus.Error("ошибка подсчета лайков: ", err)
 		likeCounts = map[int]int{}
 	}
-	liked, err := h.Repository.GetLikedByUser(userID, ids)
-	if err != nil {
-		logrus.Error("ошибка получения лайков пользователя: ", err)
-		liked = map[int]bool{}
+
+	liked := map[int]bool{}
+	if withLiked {
+		liked, err = h.Repository.GetLikedByUser(userID, ids)
+		if err != nil {
+			logrus.Error("ошибка получения лайков пользователя: ", err)
+			liked = map[int]bool{}
+		}
 	}
 
 	out := make([]planetPairResponse, 0, len(pairs))
 	for _, p := range pairs {
-		out = append(out, planetPairResponse{
+		item := planetPairResponse{
 			ID:           p.ID,
 			Name:         p.Name,
 			Description:  p.Description,
@@ -99,10 +106,15 @@ func (h *Handler) buildResponses(pairs []repository.PlanetPair) []planetPairResp
 			CreationTime: p.CreationTime,
 			FormingTime:  p.FormingTime,
 			CreatorID:    p.CreatorID,
-			IsMine:       b2i(p.CreatorID == userID),
 			LikeCount:    likeCounts[p.ID],
-			LikedByMe:    b2i(liked[p.ID]),
-		})
+		}
+		if withIsMine {
+			item.IsMine = intPtr(b2i(p.CreatorID == userID))
+		}
+		if withLiked {
+			item.LikedByMe = intPtr(b2i(liked[p.ID]))
+		}
+		out = append(out, item)
 	}
 	return out
 }
@@ -116,8 +128,6 @@ func (h *Handler) repoError(ctx *gin.Context, err error) {
 		h.errorHandler(ctx, http.StatusForbidden, err)
 	case errors.Is(err, repository.ErrWrongStatus), errors.Is(err, repository.ErrDraftExists):
 		h.errorHandler(ctx, http.StatusConflict, err)
-	case errors.Is(err, repository.ErrIncomplete):
-		h.errorHandler(ctx, http.StatusBadRequest, err)
 	default:
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 	}
@@ -143,19 +153,6 @@ func queryInt(ctx *gin.Context, key string) (*int, error) {
 		return nil, fmt.Errorf("параметр %s должен быть неотрицательным целым числом", key)
 	}
 	return &v, nil
-}
-
-// formOptionalPositiveInt читает необязательное поле формы; 0 = не передано.
-func formOptionalPositiveInt(ctx *gin.Context, key string) (int, error) {
-	raw := strings.TrimSpace(ctx.PostForm(key))
-	if raw == "" {
-		return 0, nil
-	}
-	v, err := strconv.Atoi(raw)
-	if err != nil || v <= 0 {
-		return 0, fmt.Errorf("поле %s должно быть положительным целым числом", key)
-	}
-	return v, nil
 }
 
 // ---------- Работа с файлами ----------
@@ -248,6 +245,7 @@ func saveMedia(ctx context.Context, vf *validatedFile, prefix string) (string, e
 // ---------- Обработчики ----------
 
 // GET /api/planet-pairs?range_min=&range_max=
+// В элементах есть is_mine, liked_by_me нет.
 func (h *Handler) ListPlanetPairsAPI(ctx *gin.Context) {
 	minRange, err := queryInt(ctx, "range_min")
 	if err != nil {
@@ -269,45 +267,45 @@ func (h *Handler) ListPlanetPairsAPI(ctx *gin.Context) {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"status": "success", "data": h.buildResponses(pairs)})
+	ctx.JSON(http.StatusOK, h.buildResponses(pairs, true, false))
 }
 
-// GET /api/planet-pairs/feed?limit=&offset=
+// GET /api/planet-pairs/feed                 - вся лента (массив)
+// GET /api/planet-pairs/feed?next=true&id=3  - одна карточка, следующая за id=3
+// В элементах есть liked_by_me, is_mine нет.
 func (h *Handler) FeedPlanetPairsAPI(ctx *gin.Context) {
-	limit, offset := 10, 0
-
-	l, err := queryInt(ctx, "limit")
-	if err != nil {
-		h.errorHandler(ctx, http.StatusBadRequest, err)
-		return
-	}
-	if l != nil {
-		if *l < 1 || *l > 50 {
-			h.errorHandler(ctx, http.StatusBadRequest, errors.New("limit должен быть от 1 до 50"))
+	if raw := ctx.Query("next"); raw != "" {
+		next, err := strconv.ParseBool(raw)
+		if err != nil {
+			h.errorHandler(ctx, http.StatusBadRequest, errors.New("next должен быть true или false"))
 			return
 		}
-		limit = *l
-	}
-	o, err := queryInt(ctx, "offset")
-	if err != nil {
-		h.errorHandler(ctx, http.StatusBadRequest, err)
-		return
-	}
-	if o != nil {
-		offset = *o
+		if next {
+			afterID := 0 // без id отдаём первую карточку
+			cur, err := queryInt(ctx, "id")
+			if err != nil {
+				h.errorHandler(ctx, http.StatusBadRequest, err)
+				return
+			}
+			if cur != nil {
+				afterID = *cur
+			}
+			pp, err := h.Repository.GetNextPublished(afterID)
+			if err != nil {
+				h.repoError(ctx, err)
+				return
+			}
+			ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*pp}, false, true)[0])
+			return
+		}
 	}
 
-	pairs, err := h.Repository.GetPublishedFeed(limit, offset)
+	pairs, err := h.Repository.GetPublishedFeed()
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"data":   h.buildResponses(pairs),
-		"limit":  limit,
-		"offset": offset,
-	})
+	ctx.JSON(http.StatusOK, h.buildResponses(pairs, false, true))
 }
 
 // GET /api/planet-pairs/draft - id не указывается, черновик определяется по пользователю.
@@ -321,14 +319,11 @@ func (h *Handler) GetDraftAPI(ctx *gin.Context) {
 		h.errorHandler(ctx, http.StatusNotFound, errors.New("черновик не найден"))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"data":   h.buildResponses([]repository.PlanetPair{*draft})[0],
-	})
+	ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*draft}, false, false)[0])
 }
 
 // POST /api/planet-pairs (multipart/form-data)
-// Поля: planet_start*, planet_end*, description, distance, period; файлы: photo, video.
+// Задаются ТОЛЬКО: name*, photo, video. Остальное заполняет PUT.
 // Системные поля (id, status, creator_id, даты) из запроса НЕ читаются.
 func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
 	userID := auth.CurrentUserID()
@@ -342,16 +337,6 @@ func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
 	name := strings.TrimSpace(ctx.PostForm("name"))
 	if name == "" {
 		h.errorHandler(ctx, http.StatusBadRequest, errors.New("поле name обязательно"))
-		return
-	}
-	distance, err := formOptionalPositiveInt(ctx, "distance")
-	if err != nil {
-		h.errorHandler(ctx, http.StatusBadRequest, err)
-		return
-	}
-	period, err := formOptionalPositiveInt(ctx, "period")
-	if err != nil {
-		h.errorHandler(ctx, http.StatusBadRequest, err)
 		return
 	}
 
@@ -380,10 +365,7 @@ func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
 	now := time.Now()
 	pp := repository.PlanetPair{
 		Name:         name,
-		Description:  strings.TrimSpace(ctx.PostForm("description")),
-		Distance:     distance,
-		Period:       period,
-		Status:       repository.StatusDraft,
+		Status:       repository.StatusDraft, // статус и создателя ставит бэкенд
 		CreationTime: now,
 		FormingTime:  now,
 		CreatorID:    userID,
@@ -392,32 +374,32 @@ func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
 	// Если дальше что-то упадет, загруженные в MinIO файлы удаляем.
 	var uploaded []string
 	cleanup := func() {
-		for _, name := range uploaded {
-			if err := minio.RemoveObject(context.Background(), name); err != nil {
+		for _, objName := range uploaded {
+			if err := minio.RemoveObject(context.Background(), objName); err != nil {
 				logrus.Error("не удалось удалить файл при откате: ", err)
 			}
 		}
 	}
 
 	if photo != nil {
-		name, err := saveMedia(ctx.Request.Context(), photo, photoSpec.prefix)
+		objName, err := saveMedia(ctx.Request.Context(), photo, photoSpec.prefix)
 		if err != nil {
 			cleanup()
 			h.errorHandler(ctx, http.StatusInternalServerError, err)
 			return
 		}
-		uploaded = append(uploaded, name)
-		pp.PhotoURL = name // в БД - только имя файла
+		uploaded = append(uploaded, objName)
+		pp.PhotoURL = objName // в БД - только имя файла
 	}
 	if video != nil {
-		name, err := saveMedia(ctx.Request.Context(), video, videoSpec.prefix)
+		objName, err := saveMedia(ctx.Request.Context(), video, videoSpec.prefix)
 		if err != nil {
 			cleanup()
 			h.errorHandler(ctx, http.StatusInternalServerError, err)
 			return
 		}
-		uploaded = append(uploaded, name)
-		pp.VideoURL = name
+		uploaded = append(uploaded, objName)
+		pp.VideoURL = objName
 	}
 
 	if err := h.Repository.CreateDraft(&pp); err != nil {
@@ -426,32 +408,47 @@ func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{
-		"status":  "success",
-		"data":    h.buildResponses([]repository.PlanetPair{pp})[0],
-		"message": "черновик услуги создан",
-	})
+	ctx.JSON(http.StatusCreated, h.buildResponses([]repository.PlanetPair{pp}, false, false)[0])
 }
 
-// PUT /api/planet-pairs/:id/publish - draft -> published
+// publishRequest - тело PUT: все поля, которых нет у POST. Все обязательны.
+type publishRequest struct {
+	Description string `json:"description" binding:"required"`
+	Distance    int    `json:"distance" binding:"required,gt=0"`
+	Period      int    `json:"period" binding:"required,gt=0"`
+}
+
+// PUT /api/planet-pairs/:id/publish - заполняет остальные поля и делает draft -> published
 func (h *Handler) PublishPlanetPairAPI(ctx *gin.Context) {
 	id, ok := h.parseID(ctx)
 	if !ok {
 		return
 	}
-	pp, err := h.Repository.PublishPlanetPair(id, auth.CurrentUserID())
+
+	var req publishRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.errorHandler(ctx, http.StatusBadRequest, err)
+		return
+	}
+	in := repository.PublishInput{
+		Description: strings.TrimSpace(req.Description),
+		Distance:    req.Distance,
+		Period:      req.Period,
+	}
+	if in.Description == "" {
+		h.errorHandler(ctx, http.StatusBadRequest, errors.New("description не может быть пустым"))
+		return
+	}
+
+	pp, err := h.Repository.PublishPlanetPair(id, auth.CurrentUserID(), in)
 	if err != nil {
 		h.repoError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  "success",
-		"data":    h.buildResponses([]repository.PlanetPair{*pp})[0],
-		"message": "услуга опубликована",
-	})
+	ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*pp}, false, false)[0])
 }
 
-// DELETE /api/planet-pairs/:id - soft delete
+// DELETE /api/planet-pairs/:id - soft delete, ответ 204 без тела
 func (h *Handler) DeletePlanetPairAPI(ctx *gin.Context) {
 	id, ok := h.parseID(ctx)
 	if !ok {
@@ -461,10 +458,11 @@ func (h *Handler) DeletePlanetPairAPI(ctx *gin.Context) {
 		h.repoError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"status": "success", "message": "услуга удалена"})
+	ctx.Status(http.StatusNoContent)
 }
 
 type likeRequest struct {
+	// Указатель, чтобы значение 0 не считалось "поле не передано".
 	Like *int `json:"like" binding:"required"`
 }
 
@@ -489,8 +487,5 @@ func (h *Handler) LikePlanetPairAPI(ctx *gin.Context) {
 		h.repoError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"data":   gin.H{"liked_by_me": *req.Like, "like_count": count},
-	})
+	ctx.JSON(http.StatusOK, gin.H{"like_count": count})
 }

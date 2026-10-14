@@ -3,7 +3,7 @@ package ds
 import "time"
 
 type PlanetPair struct {
-	ID int `gorm:"column:planetpairs_id;primaryKey;autoIncrement"`
+	ID           int       `gorm:"column:planetpairs_id;primaryKey;autoIncrement"`
 	Name         string    `gorm:"column:name"`
 	Description  string    `gorm:"column:description"`
 	Status       string    `gorm:"column:status"`
@@ -14,8 +14,7 @@ type PlanetPair struct {
 	CreationTime time.Time `gorm:"column:creation_time"`
 	FormingTime  time.Time `gorm:"column:forming_time"`
 	CreatorID    int       `gorm:"column:creator_id"`
-
-	Creator User `gorm:"foreignKey:CreatorID;references:ID"`
+	Creator      User      `gorm:"foreignKey:CreatorID;references:ID"`
 }
 
 func (PlanetPair) TableName() string {
