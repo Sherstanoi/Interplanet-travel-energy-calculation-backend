@@ -24,6 +24,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  redis:
+    container_name: redis_blacklist
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning --requirepass password
+    volumes:
+      - redis-data:/data
+
   adminer:
     image: adminer:latest
     ports:
@@ -34,3 +43,4 @@ services:
 volumes:
   postgres_data:
   minio-data:
+  redis-data:

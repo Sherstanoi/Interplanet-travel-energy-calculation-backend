@@ -1,2 +1,16 @@
 ServiceHost = "0.0.0.0"
 ServicePort = 8080
+
+# НАСТРОЙКИ JWT
+[JWT]
+Secret = "change-me-to-a-long-random-string"
+ExpiresIn = "1h"
+
+# НАСТРОЙКИ Redis (blacklist токенов после logout)
+[Redis]
+Host = "localhost"
+Port = 6379
+User = ""
+Password = "password"
+DialTimeout = "10s"
+ReadTimeout = "10s"

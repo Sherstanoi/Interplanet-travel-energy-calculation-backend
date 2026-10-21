@@ -1,0 +1,558 @@
+basePath: /
+definitions:
+  handler.ErrorResponse:
+    properties:
+      description:
+        example: описание ошибки
+        type: string
+      status:
+        example: error
+        type: string
+    type: object
+  handler.LikeRequest:
+    properties:
+      like:
+        description: Указатель, чтобы значение 0 не считалось "поле не передано".
+        enum:
+        - 0
+        - 1
+        example: 1
+        type: integer
+    required:
+    - like
+    type: object
+  handler.LikeResponse:
+    properties:
+      like_count:
+        example: 4
+        type: integer
+    type: object
+  handler.LoginRequest:
+    properties:
+      password:
+        example: secret123
+        type: string
+      username:
+        example: alice
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.LoginResponse:
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      expires_in:
+        description: секунд
+        example: 3600
+        type: integer
+      token_type:
+        example: Bearer
+        type: string
+    type: object
+  handler.PlanetPairResponse:
+    properties:
+      creation_time:
+        type: string
+      creator_id:
+        example: 1
+        type: integer
+      description:
+        example: Окно запуска
+        type: string
+      distance:
+        example: 225000000
+        type: integer
+      forming_time:
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_mine:
+        description: только в списке
+        enum:
+        - 0
+        - 1
+        example: 1
+        type: integer
+      like_count:
+        example: 3
+        type: integer
+      liked_by_me:
+        description: только в ленте
+        enum:
+        - 0
+        - 1
+        example: 0
+        type: integer
+      name:
+        example: Земля - Марс
+        type: string
+      period:
+        example: 780
+        type: integer
+      photo_url:
+        example: http://localhost:9000/media/photo-3f9a.jpg?X-Amz-...
+        type: string
+      status:
+        enum:
+        - draft
+        - published
+        example: published
+        type: string
+      video_url:
+        example: http://localhost:9000/media/video-7c1b.mp4?X-Amz-...
+        type: string
+    type: object
+  handler.PublishRequest:
+    properties:
+      description:
+        example: Окно запуска Земля - Марс
+        type: string
+      distance:
+        example: 225000000
+        type: integer
+      period:
+        example: 780
+        type: integer
+    required:
+    - description
+    - distance
+    - period
+    type: object
+  handler.RegisterRequest:
+    properties:
+      password:
+        description: 72 байта - предел bcrypt
+        example: secret123
+        maxLength: 72
+        type: string
+      username:
+        example: alice
+        maxLength: 50
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.UserResponse:
+    properties:
+      id:
+        example: 1
+        type: integer
+      username:
+        example: alice
+        type: string
+    type: object
+info:
+  contact: {}
+  description: |-
+    Бэкенд расчёта энергии межпланетных перелётов.
+    Без авторизации доступно только чтение (список и лента услуг). Методы создателя требуют JWT:
+    получите токен в POST /api/auth/login, нажмите Authorize и вставьте «Bearer <access_token>».
+  title: Interplanet travel energy API
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Проверяет логин и пароль и выдаёт JWT (HS256). Токен передаётся в заголовке «Authorization: Bearer <токен>».
+        В Swagger: нажмите Authorize и вставьте «Bearer <access_token>».
+      parameters:
+      - description: Логин и пароль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.LoginResponse'
+        "400":
+          description: Некорректное тело запроса
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Неверный логин или пароль
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Аутентификация
+      tags:
+      - Пользователи
+  /api/auth/logout:
+    post:
+      description: 'Добавляет текущий токен в blacklist (Redis) до конца срока его
+        действия: после этого любой запрос с этим токеном получает 401.'
+      responses:
+        "200":
+          description: Токен отозван, тела ответа нет
+        "401":
+          description: Нет токена, токен просрочен или уже отозван
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Деавторизация
+      tags:
+      - Пользователи
+  /api/planet-pairs:
+    get:
+      description: |-
+        Возвращает только опубликованные услуги (черновики и удалённые не передаются), с фильтром по расстоянию.
+        Доступен без авторизации и работает одинаково с любым токеном. Если передан действующий токен, в каждом элементе
+        поле is_mine = 1 для услуг, созданных этим пользователем; для гостя is_mine всегда 0.
+      parameters:
+      - description: Минимальное расстояние (включительно)
+        in: query
+        minimum: 0
+        name: range_min
+        type: integer
+      - description: Максимальное расстояние (включительно)
+        in: query
+        minimum: 0
+        name: range_max
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.PlanetPairResponse'
+            type: array
+        "400":
+          description: Некорректный фильтр
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Список опубликованных услуг
+      tags:
+      - 'Услуги: чтение'
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        multipart/form-data: задаются только name, photo и video. Остальные поля заполняются при публикации (PUT).
+        Файлы сохраняются в MinIO под сгенерированными латинскими именами, имена записываются в БД.
+        Создатель услуги заполняется автоматически из токена; id, статус и даты клиентом не задаются.
+        У пользователя может быть не более одного черновика.
+      parameters:
+      - description: Название
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Изображение (jpg, png, gif, webp; до 5 МБ)
+        in: formData
+        name: photo
+        type: file
+      - description: Короткое видео (mp4, webm; до 50 МБ)
+        in: formData
+        name: video
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.PlanetPairResponse'
+        "400":
+          description: Нет name или недопустимый файл
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет токена, токен просрочен или отозван
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Черновик уже существует
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Создать услугу (черновик)
+      tags:
+      - 'Услуги: создатель'
+  /api/planet-pairs/{id}:
+    delete:
+      description: Мягкое удаление (статус deleted, запись остаётся в БД). Только
+        услуги текущего пользователя.
+      parameters:
+      - description: ID услуги
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Удалено, тела ответа нет
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет токена, токен просрочен или отозван
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Услуга принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Услуга не найдена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить услугу
+      tags:
+      - 'Услуги: создатель'
+  /api/planet-pairs/{id}/like:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        like = 1 ставит лайк от текущего пользователя, like = 0 отменяет. Повторный лайк не создаёт дубликат.
+        Лайкать можно только опубликованные услуги.
+      parameters:
+      - description: ID услуги
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'like: 1 или 0'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LikeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.LikeResponse'
+        "400":
+          description: like не 0/1 или некорректный id
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет токена, токен просрочен или отозван
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Опубликованной услуги нет
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Поставить или снять лайк
+      tags:
+      - 'Услуги: создатель'
+  /api/planet-pairs/{id}/publish:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Заполняет остальные поля (description, distance, period) и меняет статус draft -> published.
+        Только создатель услуги; вернуть услугу в черновик нельзя.
+      parameters:
+      - description: ID услуги
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Поля услуги
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PublishRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PlanetPairResponse'
+        "400":
+          description: Некорректный id или поля
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Нет токена, токен просрочен или отозван
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Услуга принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Услуга не найдена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Услуга уже опубликована
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Опубликовать услугу
+      tags:
+      - 'Услуги: создатель'
+  /api/planet-pairs/draft:
+    get:
+      description: Возвращает черновик пользователя из токена (не более одного), id
+        не указывается. Только для авторизованных.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PlanetPairResponse'
+        "401":
+          description: Нет токена, токен просрочен или отозван
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Черновика нет
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Черновик текущего пользователя
+      tags:
+      - 'Услуги: создатель'
+  /api/planet-pairs/feed:
+    get:
+      description: |-
+        Без параметров возвращает массив всех опубликованных услуг по возрастанию id.
+        С next=true возвращает ОДНУ услугу (объект, а не массив), следующую за услугой с id; после последней возвращается первая,
+        без id возвращается первая. Доступна без авторизации. В элементах есть liked_by_me: 1, если текущий пользователь
+        (по токену) лайкнул услугу, для гостя всегда 0.
+      parameters:
+      - description: true - вернуть одну услугу, следующую за id
+        in: query
+        name: next
+        type: boolean
+      - description: id текущей услуги (используется вместе с next=true)
+        in: query
+        minimum: 0
+        name: id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Лента; при next=true в ответе один объект PlanetPairResponse
+          schema:
+            items:
+              $ref: '#/definitions/handler.PlanetPairResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Нет опубликованных услуг
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Лента опубликованных услуг
+      tags:
+      - 'Услуги: чтение'
+  /api/users:
+    post:
+      consumes:
+      - application/json
+      description: 'Создаёт пользователя. Пароль сохраняется только в виде bcrypt-хеша.
+        Токен при регистрации не выдаётся: после неё нужно вызвать /api/auth/login.'
+      parameters:
+      - description: Логин и пароль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Логин уже занят
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Регистрация
+      tags:
+      - Пользователи
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT в формате: Bearer <access_token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

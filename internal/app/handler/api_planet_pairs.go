@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
-	"lab1/internal/app/auth"
 	"lab1/internal/app/minio"
 	"lab1/internal/app/repository"
 )
@@ -28,23 +27,43 @@ const (
 	maxFormMemory  = 8 << 20  // сколько multipart держим в ОЗУ, остальное на диск
 )
 
-// ---------- Ответ клиенту (DTO) ----------
-// IsMine и LikedByMe - указатели с omitempty: nil -> поля нет в JSON, указатель на 0 -> выводится 0.
-type planetPairResponse struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description"`
-	Status       string    `json:"status"`
-	PhotoURL     string    `json:"photo_url"`
-	VideoURL     string    `json:"video_url"`
-	Distance     int       `json:"distance"`
-	Period       int       `json:"period"`
+// ---------- Ответы и тела запросов (попадают в Swagger) ----------
+
+// PlanetPairResponse - услуга в ответе API.
+// is_mine и liked_by_me - указатели с omitempty: nil -> поля нет в JSON, указатель на 0 -> выводится 0.
+type PlanetPairResponse struct {
+	ID           int       `json:"id" example:"1"`
+	Name         string    `json:"name" example:"Земля - Марс"`
+	Description  string    `json:"description" example:"Окно запуска"`
+	Status       string    `json:"status" enums:"draft,published" example:"published"`
+	PhotoURL     string    `json:"photo_url" example:"http://localhost:9000/media/photo-3f9a.jpg?X-Amz-..."`
+	VideoURL     string    `json:"video_url" example:"http://localhost:9000/media/video-7c1b.mp4?X-Amz-..."`
+	Distance     int       `json:"distance" example:"225000000"`
+	Period       int       `json:"period" example:"780"`
 	CreationTime time.Time `json:"creation_time"`
 	FormingTime  time.Time `json:"forming_time"`
-	CreatorID    int       `json:"creator_id"`
-	LikeCount    int       `json:"like_count"`
-	IsMine       *int      `json:"is_mine,omitempty"`     // только в обычном списке
-	LikedByMe    *int      `json:"liked_by_me,omitempty"` // только в ленте
+	CreatorID    int       `json:"creator_id" example:"1"`
+	LikeCount    int       `json:"like_count" example:"3"`
+	IsMine       *int      `json:"is_mine,omitempty" enums:"0,1" example:"1"`     // только в списке
+	LikedByMe    *int      `json:"liked_by_me,omitempty" enums:"0,1" example:"0"` // только в ленте
+}
+
+// PublishRequest - тело PUT: все поля, которых нет у POST. Все обязательны.
+type PublishRequest struct {
+	Description string `json:"description" binding:"required" example:"Окно запуска Земля - Марс"`
+	Distance    int    `json:"distance" binding:"required,gt=0" example:"225000000"`
+	Period      int    `json:"period" binding:"required,gt=0" example:"780"`
+}
+
+// LikeRequest - тело лайка: 1 ставит, 0 снимает.
+type LikeRequest struct {
+	// Указатель, чтобы значение 0 не считалось "поле не передано".
+	Like *int `json:"like" binding:"required" enums:"0,1" example:"1"`
+}
+
+// LikeResponse - число лайков услуги после операции.
+type LikeResponse struct {
+	LikeCount int `json:"like_count" example:"4"`
 }
 
 func b2i(b bool) int {
@@ -69,10 +88,8 @@ func mediaURL(objectName string) string {
 	return u
 }
 
-// buildResponses собирает DTO. withIsMine / withLiked включают необязательные поля.
-func (h *Handler) buildResponses(pairs []repository.PlanetPair, withIsMine, withLiked bool) []planetPairResponse {
-	userID := auth.CurrentUserID()
-
+// buildResponses собирает DTO. userID = 0 означает гостя: is_mine и liked_by_me будут 0.
+func (h *Handler) buildResponses(pairs []repository.PlanetPair, userID int, withIsMine, withLiked bool) []PlanetPairResponse {
 	ids := make([]int, 0, len(pairs))
 	for _, p := range pairs {
 		ids = append(ids, p.ID)
@@ -84,7 +101,7 @@ func (h *Handler) buildResponses(pairs []repository.PlanetPair, withIsMine, with
 	}
 
 	liked := map[int]bool{}
-	if withLiked {
+	if withLiked && userID > 0 {
 		liked, err = h.Repository.GetLikedByUser(userID, ids)
 		if err != nil {
 			logrus.Error("ошибка получения лайков пользователя: ", err)
@@ -92,9 +109,9 @@ func (h *Handler) buildResponses(pairs []repository.PlanetPair, withIsMine, with
 		}
 	}
 
-	out := make([]planetPairResponse, 0, len(pairs))
+	out := make([]PlanetPairResponse, 0, len(pairs))
 	for _, p := range pairs {
-		item := planetPairResponse{
+		item := PlanetPairResponse{
 			ID:           p.ID,
 			Name:         p.Name,
 			Description:  p.Description,
@@ -109,7 +126,7 @@ func (h *Handler) buildResponses(pairs []repository.PlanetPair, withIsMine, with
 			LikeCount:    likeCounts[p.ID],
 		}
 		if withIsMine {
-			item.IsMine = intPtr(b2i(p.CreatorID == userID))
+			item.IsMine = intPtr(b2i(userID > 0 && p.CreatorID == userID))
 		}
 		if withLiked {
 			item.LikedByMe = intPtr(b2i(liked[p.ID]))
@@ -242,10 +259,22 @@ func saveMedia(ctx context.Context, vf *validatedFile, prefix string) (string, e
 	return name, nil
 }
 
-// ---------- Обработчики ----------
+// ---------- Обработчики: чтение (доступно без авторизации) ----------
 
-// GET /api/planet-pairs?range_min=&range_max=
-// В элементах есть is_mine, liked_by_me нет.
+// ListPlanetPairsAPI godoc
+// @Summary      Список опубликованных услуг
+// @Description  Возвращает только опубликованные услуги (черновики и удалённые не передаются), с фильтром по расстоянию.
+// @Description  Доступен без авторизации и работает одинаково с любым токеном. Если передан действующий токен, в каждом элементе
+// @Description  поле is_mine = 1 для услуг, созданных этим пользователем; для гостя is_mine всегда 0.
+// @Tags         Услуги: чтение
+// @Produce      json
+// @Param        range_min  query     int  false  "Минимальное расстояние (включительно)"  minimum(0)
+// @Param        range_max  query     int  false  "Максимальное расстояние (включительно)" minimum(0)
+// @Success      200        {array}   PlanetPairResponse
+// @Failure      400        {object}  ErrorResponse  "Некорректный фильтр"
+// @Failure      500        {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs [get]
 func (h *Handler) ListPlanetPairsAPI(ctx *gin.Context) {
 	minRange, err := queryInt(ctx, "range_min")
 	if err != nil {
@@ -267,13 +296,28 @@ func (h *Handler) ListPlanetPairsAPI(ctx *gin.Context) {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, h.buildResponses(pairs, true, false))
+	ctx.JSON(http.StatusOK, h.buildResponses(pairs, currentUserID(ctx), true, false))
 }
 
-// GET /api/planet-pairs/feed                 - вся лента (массив)
-// GET /api/planet-pairs/feed?next=true&id=3  - одна карточка, следующая за id=3
-// В элементах есть liked_by_me, is_mine нет.
+// FeedPlanetPairsAPI godoc
+// @Summary      Лента опубликованных услуг
+// @Description  Без параметров возвращает массив всех опубликованных услуг по возрастанию id.
+// @Description  С next=true возвращает ОДНУ услугу (объект, а не массив), следующую за услугой с id; после последней возвращается первая,
+// @Description  без id возвращается первая. Доступна без авторизации. В элементах есть liked_by_me: 1, если текущий пользователь
+// @Description  (по токену) лайкнул услугу, для гостя всегда 0.
+// @Tags         Услуги: чтение
+// @Produce      json
+// @Param        next  query     bool  false  "true - вернуть одну услугу, следующую за id"
+// @Param        id    query     int   false  "id текущей услуги (используется вместе с next=true)"  minimum(0)
+// @Success      200   {array}   PlanetPairResponse  "Лента; при next=true в ответе один объект PlanetPairResponse"
+// @Failure      400   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse  "Нет опубликованных услуг"
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs/feed [get]
 func (h *Handler) FeedPlanetPairsAPI(ctx *gin.Context) {
+	userID := currentUserID(ctx)
+
 	if raw := ctx.Query("next"); raw != "" {
 		next, err := strconv.ParseBool(raw)
 		if err != nil {
@@ -295,7 +339,7 @@ func (h *Handler) FeedPlanetPairsAPI(ctx *gin.Context) {
 				h.repoError(ctx, err)
 				return
 			}
-			ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*pp}, false, true)[0])
+			ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*pp}, userID, false, true)[0])
 			return
 		}
 	}
@@ -305,12 +349,25 @@ func (h *Handler) FeedPlanetPairsAPI(ctx *gin.Context) {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, h.buildResponses(pairs, false, true))
+	ctx.JSON(http.StatusOK, h.buildResponses(pairs, userID, false, true))
 }
 
-// GET /api/planet-pairs/draft - id не указывается, черновик определяется по пользователю.
+// ---------- Обработчики: методы создателя (нужен токен) ----------
+
+// GetDraftAPI godoc
+// @Summary      Черновик текущего пользователя
+// @Description  Возвращает черновик пользователя из токена (не более одного), id не указывается. Только для авторизованных.
+// @Tags         Услуги: создатель
+// @Produce      json
+// @Success      200  {object}  PlanetPairResponse
+// @Failure      401  {object}  ErrorResponse  "Нет токена, токен просрочен или отозван"
+// @Failure      404  {object}  ErrorResponse  "Черновика нет"
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs/draft [get]
 func (h *Handler) GetDraftAPI(ctx *gin.Context) {
-	draft, err := h.Repository.GetDraftByCreator(auth.CurrentUserID())
+	userID := currentUserID(ctx)
+	draft, err := h.Repository.GetDraftByCreator(userID)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
@@ -319,14 +376,30 @@ func (h *Handler) GetDraftAPI(ctx *gin.Context) {
 		h.errorHandler(ctx, http.StatusNotFound, errors.New("черновик не найден"))
 		return
 	}
-	ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*draft}, false, false)[0])
+	ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*draft}, userID, false, false)[0])
 }
 
-// POST /api/planet-pairs (multipart/form-data)
-// Задаются ТОЛЬКО: name*, photo, video. Остальное заполняет PUT.
-// Системные поля (id, status, creator_id, даты) из запроса НЕ читаются.
+// CreatePlanetPairAPI godoc
+// @Summary      Создать услугу (черновик)
+// @Description  multipart/form-data: задаются только name, photo и video. Остальные поля заполняются при публикации (PUT).
+// @Description  Файлы сохраняются в MinIO под сгенерированными латинскими именами, имена записываются в БД.
+// @Description  Создатель услуги заполняется автоматически из токена; id, статус и даты клиентом не задаются.
+// @Description  У пользователя может быть не более одного черновика.
+// @Tags         Услуги: создатель
+// @Accept       mpfd
+// @Produce      json
+// @Param        name   formData  string  true   "Название"
+// @Param        photo  formData  file    false  "Изображение (jpg, png, gif, webp; до 5 МБ)"
+// @Param        video  formData  file    false  "Короткое видео (mp4, webm; до 50 МБ)"
+// @Success      201    {object}  PlanetPairResponse
+// @Failure      400    {object}  ErrorResponse  "Нет name или недопустимый файл"
+// @Failure      401    {object}  ErrorResponse  "Нет токена, токен просрочен или отозван"
+// @Failure      409    {object}  ErrorResponse  "Черновик уже существует"
+// @Failure      500    {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs [post]
 func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
-	userID := auth.CurrentUserID()
+	userID := currentUserID(ctx) // автозаполнение создателя: берется из токена
 
 	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, maxRequestSize)
 	if err := ctx.Request.ParseMultipartForm(maxFormMemory); err != nil {
@@ -408,24 +481,34 @@ func (h *Handler) CreatePlanetPairAPI(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, h.buildResponses([]repository.PlanetPair{pp}, false, false)[0])
+	ctx.JSON(http.StatusCreated, h.buildResponses([]repository.PlanetPair{pp}, userID, false, false)[0])
 }
 
-// publishRequest - тело PUT: все поля, которых нет у POST. Все обязательны.
-type publishRequest struct {
-	Description string `json:"description" binding:"required"`
-	Distance    int    `json:"distance" binding:"required,gt=0"`
-	Period      int    `json:"period" binding:"required,gt=0"`
-}
-
-// PUT /api/planet-pairs/:id/publish - заполняет остальные поля и делает draft -> published
+// PublishPlanetPairAPI godoc
+// @Summary      Опубликовать услугу
+// @Description  Заполняет остальные поля (description, distance, period) и меняет статус draft -> published.
+// @Description  Только создатель услуги; вернуть услугу в черновик нельзя.
+// @Tags         Услуги: создатель
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int             true  "ID услуги"
+// @Param        body  body      PublishRequest  true  "Поля услуги"
+// @Success      200   {object}  PlanetPairResponse
+// @Failure      400   {object}  ErrorResponse  "Некорректный id или поля"
+// @Failure      401   {object}  ErrorResponse  "Нет токена, токен просрочен или отозван"
+// @Failure      403   {object}  ErrorResponse  "Услуга принадлежит другому пользователю"
+// @Failure      404   {object}  ErrorResponse  "Услуга не найдена"
+// @Failure      409   {object}  ErrorResponse  "Услуга уже опубликована"
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs/{id}/publish [put]
 func (h *Handler) PublishPlanetPairAPI(ctx *gin.Context) {
 	id, ok := h.parseID(ctx)
 	if !ok {
 		return
 	}
 
-	var req publishRequest
+	var req PublishRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		h.errorHandler(ctx, http.StatusBadRequest, err)
 		return
@@ -440,39 +523,62 @@ func (h *Handler) PublishPlanetPairAPI(ctx *gin.Context) {
 		return
 	}
 
-	pp, err := h.Repository.PublishPlanetPair(id, auth.CurrentUserID(), in)
+	userID := currentUserID(ctx)
+	pp, err := h.Repository.PublishPlanetPair(id, userID, in)
 	if err != nil {
 		h.repoError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*pp}, false, false)[0])
+	ctx.JSON(http.StatusOK, h.buildResponses([]repository.PlanetPair{*pp}, userID, false, false)[0])
 }
 
-// DELETE /api/planet-pairs/:id - soft delete, ответ 204 без тела
+// DeletePlanetPairAPI godoc
+// @Summary      Удалить услугу
+// @Description  Мягкое удаление (статус deleted, запись остаётся в БД). Только услуги текущего пользователя.
+// @Tags         Услуги: создатель
+// @Param        id   path  int  true  "ID услуги"
+// @Success      204  "Удалено, тела ответа нет"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse  "Нет токена, токен просрочен или отозван"
+// @Failure      403  {object}  ErrorResponse  "Услуга принадлежит другому пользователю"
+// @Failure      404  {object}  ErrorResponse  "Услуга не найдена"
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs/{id} [delete]
 func (h *Handler) DeletePlanetPairAPI(ctx *gin.Context) {
 	id, ok := h.parseID(ctx)
 	if !ok {
 		return
 	}
-	if err := h.Repository.SoftDeletePlanetPair(id, auth.CurrentUserID()); err != nil {
+	if err := h.Repository.SoftDeletePlanetPair(id, currentUserID(ctx)); err != nil {
 		h.repoError(ctx, err)
 		return
 	}
 	ctx.Status(http.StatusNoContent)
 }
 
-type likeRequest struct {
-	// Указатель, чтобы значение 0 не считалось "поле не передано".
-	Like *int `json:"like" binding:"required"`
-}
-
-// POST /api/planet-pairs/:id/like  body: {"like": 1} или {"like": 0}
+// LikePlanetPairAPI godoc
+// @Summary      Поставить или снять лайк
+// @Description  like = 1 ставит лайк от текущего пользователя, like = 0 отменяет. Повторный лайк не создаёт дубликат.
+// @Description  Лайкать можно только опубликованные услуги.
+// @Tags         Услуги: создатель
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int          true  "ID услуги"
+// @Param        body  body      LikeRequest  true  "like: 1 или 0"
+// @Success      200   {object}  LikeResponse
+// @Failure      400   {object}  ErrorResponse  "like не 0/1 или некорректный id"
+// @Failure      401   {object}  ErrorResponse  "Нет токена, токен просрочен или отозван"
+// @Failure      404   {object}  ErrorResponse  "Опубликованной услуги нет"
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /api/planet-pairs/{id}/like [post]
 func (h *Handler) LikePlanetPairAPI(ctx *gin.Context) {
 	id, ok := h.parseID(ctx)
 	if !ok {
 		return
 	}
-	var req likeRequest
+	var req LikeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		h.errorHandler(ctx, http.StatusBadRequest, err)
 		return
@@ -482,10 +588,10 @@ func (h *Handler) LikePlanetPairAPI(ctx *gin.Context) {
 		return
 	}
 
-	count, err := h.Repository.SetLike(auth.CurrentUserID(), id, *req.Like == 1)
+	count, err := h.Repository.SetLike(currentUserID(ctx), id, *req.Like == 1)
 	if err != nil {
 		h.repoError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"like_count": count})
+	ctx.JSON(http.StatusOK, LikeResponse{LikeCount: count})
 }
